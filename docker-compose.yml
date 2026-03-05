@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  stock-ml-api:
+    build: .
+    container_name: stock-ml-api
+    ports:
+      - "8000:8000"
+    restart: always
