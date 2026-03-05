@@ -118,3 +118,13 @@ def retrain():
     except Exception as e:
 
         return {"status": "Retraining failed", "error": str(e)}
+
+
+@app.get("/logs")
+def get_logs():
+
+    if LOG_PATH.exists():
+        df = pd.read_csv(LOG_PATH)
+        return df.to_dict(orient="records")
+
+    return []
