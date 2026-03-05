@@ -4,12 +4,14 @@ import pandas as pd
 import yfinance as yf
 import ta
 from pathlib import Path
+from datetime import datetime
 import subprocess
 
 app = FastAPI()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "models" / "rf_model.pkl"
+LOG_PATH = BASE_DIR / "logs" / "prediction_log.csv"
 
 model = joblib.load(MODEL_PATH)
 
@@ -59,7 +61,22 @@ def get_latest_features():
         "macd",
     ]
 
-    return df[features].iloc[-1:]
+    latest_price = float(df["Close"].iloc[-1])
+
+    return df[features].iloc[-1:], latest_price
+
+
+def log_prediction(price, prediction, probability):
+
+    log_entry = pd.DataFrame(
+        [[datetime.utcnow(), price, prediction, probability]],
+        columns=["timestamp", "price", "prediction", "probability"],
+    )
+
+    if LOG_PATH.exists():
+        log_entry.to_csv(LOG_PATH, mode="a", header=False, index=False)
+    else:
+        log_entry.to_csv(LOG_PATH, index=False)
 
 
 @app.get("/")
@@ -70,15 +87,19 @@ def root():
 @app.get("/predict")
 def predict():
 
-    X = get_latest_features()
+    X, price = get_latest_features()
 
-    prediction = model.predict(X)[0]
-
+    prediction_raw = model.predict(X)[0]
     probability = model.predict_proba(X)[0][1]
 
+    prediction = "UP" if prediction_raw == 1 else "DOWN"
+
+    log_prediction(price, prediction, float(probability))
+
     return {
-        "prediction": "UP" if prediction == 1 else "DOWN",
+        "prediction": prediction,
         "probability_up": round(float(probability), 4),
+        "current_price": round(price, 2),
     }
 
 
@@ -86,6 +107,7 @@ def predict():
 def retrain():
 
     try:
+
         subprocess.run(["python", "src/retrain_pipeline.py"], check=True)
 
         global model
@@ -94,4 +116,5 @@ def retrain():
         return {"status": "Model retrained successfully"}
 
     except Exception as e:
+
         return {"status": "Retraining failed", "error": str(e)}
