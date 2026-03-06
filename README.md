@@ -1,311 +1,281 @@
-# ML Stock Direction Pipeline
+# ML Stock Direction Prediction Pipeline
 
-Machine learning pipeline for **predicting short-term stock market direction** using technical indicators and automated retraining.
-The system continuously fetches fresh market data, generates features, trains a model, and serves predictions through a **FastAPI service deployed with Docker**.
+A production-style machine learning system that predicts the **next-day direction of the S&P 500 (SPY ETF)** using technical indicators and continuously logs predictions for monitoring and retraining.
 
-This project demonstrates an **end-to-end applied machine learning system**, including data ingestion, feature engineering, model training, API serving, retraining triggers, and containerized deployment.
+This project demonstrates the **full lifecycle of an ML system**, including:
+
+* Data ingestion
+* Feature engineering
+* Model training
+* Model serving via API
+* Automated retraining
+* Monitoring dashboard
+* Cloud deployment
+* Containerization
 
 ---
 
-# Project Overview
+# Key Highlights
 
-This project predicts whether the **next market move for SPY (S&P 500 ETF)** will be **UP or DOWN** based on technical indicators derived from historical price data.
+• End-to-end machine learning pipeline
+• Real-time financial data ingestion from Yahoo Finance
+• Containerized ML API using Docker
+• Cloud deployment using Render
+• Interactive monitoring dashboard with Streamlit
+• Automated model retraining via API endpoint
+• Prediction logging for model monitoring and drift analysis
 
-The system includes:
+---
 
-* Automated data ingestion from Yahoo Finance
-* Feature engineering with financial indicators
-* Machine learning model training
-* REST API prediction service
-* On-demand retraining endpoint
-* Docker containerization
-* Docker Compose orchestration
+# Tech Stack
 
-The goal of the project is to demonstrate a **production-style machine learning workflow**, not simply a notebook model.
+Python • Scikit-learn • Pandas • FastAPI • Streamlit • Docker • Render • Plotly
 
 ---
 
 # System Architecture
 
-User / Client
-↓
-FastAPI Service
-↓
-Prediction Endpoint (`/predict`)
-↓
-Feature Generation
-↓
-Trained Model (`Random Forest`)
-↓
-Prediction Response
+```
+                 +----------------------+
+                 |  Yahoo Finance API   |
+                 +----------+-----------+
+                            |
+                            v
+                 +----------------------+
+                 |   Data Ingestion     |
+                 |  (yfinance pipeline) |
+                 +----------+-----------+
+                            |
+                            v
+                 +----------------------+
+                 |  Feature Engineering |
+                 | Technical Indicators |
+                 +----------+-----------+
+                            |
+                            v
+                 +----------------------+
+                 | Random Forest Model  |
+                 |  Direction Prediction|
+                 +----------+-----------+
+                            |
+                            v
+                 +----------------------+
+                 |  FastAPI ML Service  |
+                 |  /predict /retrain   |
+                 +----------+-----------+
+                            |
+                            v
+                 +----------------------+
+                 | Prediction Logging   |
+                 | timestamp + price    |
+                 +----------+-----------+
+                            |
+                            v
+                 +----------------------+
+                 | Monitoring Dashboard |
+                 |      Streamlit       |
+                 +----------------------+
+```
 
-Optional admin trigger:
+Deployment architecture:
 
-`POST /retrain`
-
-↓
-
-Retraining Pipeline
-
-* Download latest market data
-* Generate features
-* Train model
-* Save updated model
+```
+Docker Container
+        ↓
+Render Cloud (API Hosting)
+        ↓
+Streamlit Cloud (Monitoring Dashboard)
+```
 
 ---
 
-# Project Structure
+# Live Demo
 
-```
-ml-stock-direction-pipeline
-│
-├── src
-│   ├── api.py
-│   ├── retrain_pipeline.py
-│   ├── train_model.py
-│   ├── feature_engineering.py
-│   ├── data_ingestion.py
-│   └── predict.py
-│
-├── models
-│   └── rf_model.pkl
-│
-├── data
-│
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-├── Makefile
-├── .gitignore
-└── README.md
-```
+### ML Prediction API
+
+https://ml-stock-direction-pipeline.onrender.com
+
+### API Documentation
+
+https://ml-stock-direction-pipeline.onrender.com/docs
+
+### Monitoring Dashboard
+
+https://ml-stock-direction-pipeline-dashboard.streamlit.app/
+
+The dashboard allows users to:
+
+* Trigger new predictions
+* Retrain the model
+* Monitor prediction probability trends
+* Track model health metrics
+* Review prediction history
 
 ---
 
-# Machine Learning Pipeline
+# Machine Learning Features
 
-## Data Ingestion
-
-Historical SPY market data is downloaded using the Yahoo Finance API.
-
-```
-yfinance
-```
-
-The pipeline retrieves:
-
-* Open
-* High
-* Low
-* Close
-* Volume
-
----
-
-## Feature Engineering
-
-Technical indicators are generated from price data.
-
-Features include:
+The model uses several technical indicators including:
 
 * Daily returns
-* Moving averages (10, 50)
-* RSI
-* Volatility
+* Moving averages (10-day and 50-day)
+* Volatility metrics
+* RSI momentum indicator
+* MACD trend indicator
 * Lagged returns
-* Momentum
-* MACD
+* Price momentum
 
-These features provide signals related to **trend, momentum, and volatility**.
+These features help capture **trend, volatility, and momentum signals** from financial markets.
 
 ---
 
-## Model Training
+# Monitoring & MLOps Capabilities
 
-A **Random Forest classifier** is used to predict the next market direction.
+Every prediction generated by the API is logged with:
 
-Target variable:
+* Timestamp
+* SPY price
+* Predicted direction
+* Prediction probability
 
-```
-1 → Market Up
-0 → Market Down
-```
+The Streamlit dashboard provides:
 
-The dataset is split using **time-series ordering** to prevent look-ahead bias.
+### Model Health Metrics
+
+* Total predictions made
+* Average prediction confidence
+* UP vs DOWN prediction distribution
+
+### Monitoring Visualizations
+
+* Probability trend over time
+* SPY price at prediction time
+* Prediction history table
+
+This logging structure enables future implementation of:
+
+* Model drift monitoring
+* Rolling prediction accuracy
+* Automated retraining triggers
 
 ---
 
 # API Endpoints
 
-The model is served using **FastAPI**.
+### Get Prediction
 
-## Root Endpoint
-
-```
-GET /
-```
-
-Returns API status.
-
-Example response:
-
-```
-{
- "message": "Stock Prediction API is running"
-}
-```
-
----
-
-## Prediction Endpoint
-
-```
 GET /predict
-```
-
-Returns the predicted market direction and probability.
 
 Example response:
 
-```
 {
- "prediction": "UP",
- "probability_up": 0.5723
+"prediction": "UP",
+"probability_up": 0.59,
+"current_price": 681.31
 }
-```
 
 ---
 
-## Retraining Endpoint
+### Retrain Model
 
-```
 POST /retrain
-```
 
-Triggers the full retraining pipeline.
-
-Steps executed:
-
-1. Download latest market data
-2. Rebuild feature dataset
-3. Train model
-4. Save new model artifact
-5. Reload model into the API
-
-Example response:
-
-```
-{
- "status": "Model retrained successfully"
-}
-```
+Triggers the full training pipeline and reloads the model.
 
 ---
 
-# Running the Project Locally
+### Prediction Logs
 
-## Clone Repository
+GET /logs
 
-```
-git clone https://github.com/yourusername/ml-stock-direction-pipeline.git
+Returns all historical predictions recorded by the system.
+
+---
+
+# Technology Stack
+
+### Machine Learning
+
+Python
+Scikit-learn
+Pandas
+Technical Analysis (ta)
+
+### Data Source
+
+Yahoo Finance API
+
+### Backend
+
+FastAPI
+
+### Monitoring
+
+Streamlit
+Plotly
+
+### Infrastructure
+
+Docker
+Render Cloud
+Streamlit Cloud
+
+---
+
+# Running Locally
+
+Clone the repository:
+
+git clone https://github.com/AmanuelKBr/ml-stock-direction-pipeline.git
 cd ml-stock-direction-pipeline
-```
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+Run API locally:
+
+uvicorn src.api:app --reload
+
+Run dashboard locally:
+
+streamlit run streamlit_app.py
 
 ---
 
-## Run with Docker
+# Docker Deployment
 
-Build and start the system:
+Build container:
 
-```
-docker compose up --build
-```
+docker build -t stock-ml-api .
 
-API will be available at:
+Run container:
 
-```
-http://localhost:8000
-```
-
-Interactive API documentation:
-
-```
-http://localhost:8000/docs
-```
-
----
-
-# Containerized Deployment
-
-The entire system runs inside a Docker container.
-
-Key components:
-
-* Python runtime
-* FastAPI server
-* Machine learning model
-* Feature pipeline
-
-Docker ensures the project runs consistently across environments.
-
----
-
-# Example Workflow
-
-Start the system
-
-```
-docker compose up
-```
-
-Request a prediction
-
-```
-GET /predict
-```
-
-Trigger retraining
-
-```
-POST /retrain
-```
-
-Receive updated predictions using the newly trained model.
-
----
-
-# Technologies Used
-
-* Python
-* FastAPI
-* Scikit-Learn
-* Pandas
-* NumPy
-* TA (technical indicators)
-* Yahoo Finance API
-* Docker
-* Docker Compose
+docker run -p 8000:8000 stock-ml-api
 
 ---
 
 # Future Improvements
 
-Possible enhancements include:
+Possible extensions include:
 
-* Model drift monitoring
-* Scheduled retraining jobs
-* Feature store integration
-* Experiment tracking
-* Cloud deployment
-* Streamlit visualization dashboard
+* Prediction accuracy tracking
+* Model drift detection
+* Scheduled retraining
+* Feature importance monitoring
+* Multi-model experimentation
 
 ---
 
-# Author
+# Project Purpose
 
-Amanuel Birri
+This project was built to demonstrate **end-to-end machine learning system design**, combining:
 
-Data & Analytics Engineer | Applied Machine Learning
-Focused on building **production-ready ML systems and analytics pipelines**.
+* data science
+* ML engineering
+* backend APIs
+* monitoring dashboards
+* cloud deployment
+* containerization
 
-LinkedIn and portfolio links coming soon.
+It reflects **real-world ML workflows used in production environments**.
